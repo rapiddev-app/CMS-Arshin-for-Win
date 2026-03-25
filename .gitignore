@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# PyInstaller
+*.spec.bak
+*.manifest
+*.exe.bak
+
+# Embedded Python
+python_embedded/
+python_embedded.zip
+
+# Release
+release/
+
+# Logs
+logs/
+*.log
+
+# Configuration (содержат пароли и локальные пути)
+config/*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+~$*

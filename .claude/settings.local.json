@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(timeout:*)",
+      "Bash(findstr:*)",
+      "Bash(cat:*)",
+      "Bash(python_embedded/python.exe:*)",
+      "Bash(copy /Y \"e:\\\\All scripts\\\\CMS Arshin for Win\\\\src\\\\gui.py\" \"C:\\\\Program Files\\\\ScriptManager\\\\src\\\\gui.py\")"
+    ]
+  }
+}

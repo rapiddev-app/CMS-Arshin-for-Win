@@ -1,0 +1,15 @@
+# Зависимости ScriptManager
+# Python 3.10+
+
+# GUI
+customtkinter==5.2.0
+
+# Windows Task Scheduler
+pywin32==306
+
+# Работа с Excel
+pandas==2.1.0
+openpyxl==3.1.2
+
+# HTTP запросы (для Telegram и API календаря)
+requests==2.31.0
