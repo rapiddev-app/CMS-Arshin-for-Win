@@ -14,7 +14,16 @@ class ConfigManager:
     """Класс для работы с JSON конфигурационными файлами"""
 
     def __init__(self):
-        """Инициализация и создание структуры config/"""
+        """Инициализация и создание структуры config/.
+
+        По умолчанию на Windows конфиги берутся из `%APPDATA%\\ScriptManager\\config`,
+        а "шаблонные" конфиги — из папки установки/проекта `config/`.
+
+        Для тестов и отладки можно принудительно указать папку конфигов через
+        переменную окружения `SCRIPTMANAGER_CONFIG_DIR` (или `SCRIPT_MANAGER_CONFIG_DIR`).
+
+        :raises OSError: Если не удалось создать папку конфигов.
+        """
         # Получаем корневую директорию проекта (Program Files)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.project_root = os.path.dirname(current_dir)
@@ -22,9 +31,17 @@ class ConfigManager:
         # Путь к "шаблонным" конфигам в папке установки
         self.install_config_dir = os.path.join(self.project_root, "config")
 
+        # Принудительное указание каталога конфигов (удобно для тестов)
+        forced_config_dir = (
+            os.environ.get("SCRIPTMANAGER_CONFIG_DIR")
+            or os.environ.get("SCRIPT_MANAGER_CONFIG_DIR")
+        )
+
         # Определяем рабочую папку конфигурации (APPDATA)
         import sys
-        if sys.platform == 'win32':
+        if forced_config_dir:
+            self.config_dir = forced_config_dir
+        elif sys.platform == 'win32':
             app_data = os.environ.get('APPDATA')
             if app_data:
                 self.config_dir = os.path.join(app_data, 'ScriptManager', 'config')

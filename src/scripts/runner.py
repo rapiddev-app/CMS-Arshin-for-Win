@@ -94,6 +94,9 @@ def main():
     except Exception as e:
         error_msg = f"RUNNER: Критическая ошибка при выполнении скрипта '{script_id}': {e}"
         logging.error(error_msg, exc_info=True)
+        # stdout и stderr: GUI объединяет оба потока; дублируем в stderr для инструментов,
+        # которые читают только один из потоков.
+        print(error_msg, file=sys.stderr)
         print(error_msg)
         sys.exit(1)
 

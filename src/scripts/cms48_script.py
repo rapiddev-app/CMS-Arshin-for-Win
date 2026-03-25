@@ -9,6 +9,7 @@ Daily скрипт (аналогичен CMS36):
 
 import os
 import sys
+import warnings
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Tuple, Any
@@ -63,7 +64,15 @@ class CMS48Script(BaseScript):
                     logging.info(f"CMS48: Обрабатываю файл: {file}")
 
                     try:
-                        df = pd.read_excel(file_path, sheet_name=paths['sheet_name'])
+                        # openpyxl пишет UserWarning про Data Validation в stderr — в GUI это
+                        # мешало видеть реальную причину ошибки; для чтения файла предупреждение не нужно
+                        with warnings.catch_warnings():
+                            warnings.filterwarnings(
+                                "ignore",
+                                message=".*Data Validation extension.*",
+                                category=UserWarning,
+                            )
+                            df = pd.read_excel(file_path, sheet_name=paths['sheet_name'])
 
                         # Фильтрация по № в ГРСИ
                         df = df[
@@ -126,10 +135,16 @@ class CMS48Script(BaseScript):
 
         # Проверка на дубли
         if os.path.exists(filepath):
-            error_msg = f"<b>ОШИБКА по Липецку:</b> Дубль файла <code>{filename}.xlsx</code>. Реестр не отправлен!"
-            logging.error(error_msg)
-            self.send_telegram_notification(error_msg, to_group=True)
-            raise FileExistsError(error_msg)
+            telegram_msg = (
+                f"<b>ОШИБКА по Липецку:</b> Дубль файла <code>{filename}.xlsx</code>. "
+                "Реестр не отправлен!"
+            )
+            logging.error(telegram_msg)
+            self.send_telegram_notification(telegram_msg, to_group=True)
+            raise FileExistsError(
+                f"Дубль файла {filename}.xlsx: такой реестр уже есть в папке выгрузки. "
+                "Удалите или переименуйте старый файл и повторите запуск."
+            )
 
         # Форматируем даты
         if 'Дата поверки' in df.columns:

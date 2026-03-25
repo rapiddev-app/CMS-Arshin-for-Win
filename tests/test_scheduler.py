@@ -4,7 +4,15 @@
 
 import sys
 import os
-sys.path.insert(0, 'src')
+
+# Для тестов используем конфиги из репозитория (а не из %APPDATA%)
+_TESTS_DIR = os.path.dirname(__file__)
+_PROJECT_ROOT = os.path.abspath(os.path.join(_TESTS_DIR, ".."))
+os.environ["SCRIPTMANAGER_CONFIG_DIR"] = os.path.join(_PROJECT_ROOT, "config")
+
+# Добавляем путь к src (относительно корня проекта)
+_SRC_DIR = os.path.join(_PROJECT_ROOT, "src")
+sys.path.insert(0, _SRC_DIR)
 
 from scheduler import TaskSchedulerManager
 from utils import setup_logging

@@ -31,6 +31,31 @@ except Exception as e:
     sys.exit(1)
 
 
+def _format_subprocess_error(process, max_len: int = 2000) -> str:
+    """
+    Формирует текст ошибки для диалога после неуспешного subprocess.run.
+
+    runner.py выводит причину в stdout, предупреждения библиотек (openpyxl)
+    попадают в stderr. Раньше показывался только stderr — пользователь видел
+    лишь UserWarning, а не сообщение о реальной ошибке.
+
+    :param process: результат ``subprocess.run`` с полями stdout/stderr.
+    :param max_len: ограничение длины текста для окна сообщения.
+    :returns: объединённая строка или текст о пустом выводе.
+    """
+    out = (process.stdout or "").strip()
+    err = (process.stderr or "").strip()
+    if out and err:
+        combined = f"{out}\n\n---\n{err}"
+    elif out:
+        combined = out
+    elif err:
+        combined = err
+    else:
+        combined = "Неизвестная ошибка (пустой вывод)"
+    return combined[:max_len]
+
+
 class PasswordDialog(ctk.CTkToplevel):
     """Диалог ввода пароля для доступа к настройкам"""
 
@@ -629,14 +654,10 @@ class ScriptManagerGUI:
                     msg += f"\n\nПисьмо отправлено на: {test_email.strip()}"
                 messagebox.showinfo("Успех", msg)
             else:
-                # Если stderr пустой, возможно ошибка в stdout
-                error_msg = process.stderr if process.stderr else process.stdout
-                if not error_msg:
-                    error_msg = "Неизвестная ошибка (пустой вывод)"
-                
+                error_msg = _format_subprocess_error(process, max_len=2000)
                 messagebox.showerror(
                     "Ошибка",
-                    f"Ошибка при выполнении:\n{error_msg[:1000]}"
+                    f"Ошибка при выполнении:\n{error_msg}"
                 )
 
         except subprocess.TimeoutExpired:
@@ -705,13 +726,10 @@ class ScriptManagerGUI:
             if process.returncode == 0:
                 messagebox.showinfo("Успех", f"Скрипт {config['name']} выполнен успешно!")
             else:
-                error_msg = process.stderr if process.stderr else process.stdout
-                if not error_msg:
-                    error_msg = "Неизвестная ошибка (пустой вывод)"
-                
+                error_msg = _format_subprocess_error(process, max_len=2000)
                 messagebox.showerror(
                     "Ошибка",
-                    f"Ошибка при выполнении:\n{error_msg[:1000]}"
+                    f"Ошибка при выполнении:\n{error_msg}"
                 )
 
         except subprocess.TimeoutExpired:

@@ -4,8 +4,17 @@
 
 import sys
 import os
-sys.path.insert(0, 'src')
-sys.path.insert(0, 'src/scripts')
+
+# Для тестов используем конфиги из репозитория (а не из %APPDATA%)
+_TESTS_DIR = os.path.dirname(__file__)
+_PROJECT_ROOT = os.path.abspath(os.path.join(_TESTS_DIR, ".."))
+os.environ["SCRIPTMANAGER_CONFIG_DIR"] = os.path.join(_PROJECT_ROOT, "config")
+
+# Добавляем пути к src и src/scripts (относительно корня проекта)
+_SRC_DIR = os.path.join(_PROJECT_ROOT, "src")
+_SCRIPTS_DIR = os.path.join(_SRC_DIR, "scripts")
+sys.path.insert(0, _SRC_DIR)
+sys.path.insert(0, _SCRIPTS_DIR)
 
 from base_script import BaseScript
 from utils import setup_logging
