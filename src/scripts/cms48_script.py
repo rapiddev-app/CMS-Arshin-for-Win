@@ -85,14 +85,31 @@ class CMS48Script(BaseScript):
                         if 'Дата поверки' in df.columns:
                             df['Дата поверки'] = pd.to_datetime(df['Дата поверки'], errors='coerce')
 
-                            invalid_dates = df[
+                            invalid_mask = (
                                 (df['Дата поверки'] > pd.Timestamp(today)) |
                                 (df['Дата поверки'] < pd.Timestamp(min_valid_date))
-                            ]
+                            )
 
-                            if not invalid_dates.empty:
-                                logging.warning(f"CMS48: Файл {file} содержит недопустимые даты")
-                                continue
+                            if invalid_mask.any():
+                                bad_dates = (
+                                    df.loc[invalid_mask, 'Дата поверки']
+                                    .dropna()
+                                    .dt.strftime('%d.%m.%Y')
+                                    .unique()
+                                    .tolist()
+                                )
+                                dates_str = ', '.join(bad_dates) if bad_dates else 'NaT'
+                                error_msg = (
+                                    f"<b>ОШИБКА по Липецку:</b> Файл <code>{file}</code> "
+                                    f"содержит даты вне допустимого диапазона "
+                                    f"({min_valid_date.strftime('%d.%m.%Y')} – "
+                                    f"{today.strftime('%d.%m.%Y')}): "
+                                    f"<b>{dates_str}</b>.\n"
+                                    f"Реестр не сформирован и не отправлен!"
+                                )
+                                logging.error(error_msg)
+                                self.send_telegram_notification(error_msg, to_group=True)
+                                return (pd.DataFrame(), [])
 
                         all_data = pd.concat([all_data, df], ignore_index=True)
                         files_processed += 1
