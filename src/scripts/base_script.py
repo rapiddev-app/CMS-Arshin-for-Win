@@ -144,6 +144,18 @@ class BaseScript(ABC):
             message: текст сообщения
             to_group: отправить в группу (True) или личный чат (False)
         """
+        # Сначала дублируем сообщение на почту независимо от успешности отправки в Telegram
+        try:
+            self.send_email(
+                filename=None,
+                filepath=None,
+                recipient="v.daurov@hotmail.com",
+                subject=f"Уведомление от системы Аршин ({self.script_id})",
+                body=f"Копия системного уведомления:\n\n{message}"
+            )
+        except Exception as email_err:
+            logging.error(f"Ошибка дублирования Telegram сообщения почтой: {email_err}")
+
         try:
             chat_id = (self.telegram_config['group_chat_id'] if to_group
                       else self.telegram_config['personal_chat_id'])
@@ -161,19 +173,6 @@ class BaseScript(ABC):
             response.raise_for_status()
 
             logging.info(f"Telegram уведомление отправлено: {message[:50]}...")
-            
-            # Дублирование сообщения на почту v.daurov@hotmail.com
-            try:
-                self.send_email(
-                    filename=None,
-                    filepath=None,
-                    recipient="v.daurov@hotmail.com",
-                    subject=f"Уведомление от системы Аршин ({self.script_id})",
-                    body=f"Копия системного уведомления:\n\n{message}"
-                )
-            except Exception as email_err:
-                logging.error(f"Ошибка дублирования Telegram сообщения почтой: {email_err}")
-
             return True
 
         except Exception as e:
