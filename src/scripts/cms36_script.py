@@ -227,6 +227,13 @@ class CMS36Script(BaseScript):
                 message = "Отправка файла отменена: данных о поверке по Воронежу нет или дата вне допустимого диапазона."
                 logging.warning(message)
                 self.send_telegram_notification(message, to_group=True)
+                # Перепланирование перед ранним выходом
+                schedule = self.config['schedule']
+                self.reschedule_next_run(
+                    schedule_type='daily',
+                    send_time=schedule['send_time'],
+                    smart_reschedule=schedule.get('smart_reschedule', True)
+                )
                 return
 
             # Создание выходного файла

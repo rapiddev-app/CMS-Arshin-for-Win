@@ -149,6 +149,15 @@ class LTSScript(BaseScript):
                 message = "Данных о поверке по Липецктеплосеть нет"
                 logging.warning(message)
                 self.send_telegram_notification(message, to_group=True)
+                # Перепланирование перед ранним выходом
+                schedule = self.config['schedule']
+                send_day = schedule.get('send_day', 'Thursday')
+                self.reschedule_next_run(
+                    schedule_type='weekly',
+                    send_time=schedule['send_time'],
+                    send_day=send_day,
+                    smart_reschedule=schedule.get('smart_reschedule', True)
+                )
                 return
 
             filename, filepath = self.create_output_file(data)

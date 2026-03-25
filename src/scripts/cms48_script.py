@@ -196,6 +196,13 @@ class CMS48Script(BaseScript):
                 message = "CMS48: Данных о поверке по Липецку нет"
                 logging.warning(message)
                 self.send_telegram_notification(message, to_group=True)
+                # Перепланирование перед ранним выходом
+                schedule = self.config['schedule']
+                self.reschedule_next_run(
+                    schedule_type='daily',
+                    send_time=schedule['send_time'],
+                    smart_reschedule=schedule.get('smart_reschedule', True)
+                )
                 return
 
             filename, filepath = self.create_output_file(data)
