@@ -136,49 +136,105 @@ class BaseScript(ABC):
             logging.error(f"Ошибка отправки email: {e}")
             raise
 
-    def send_telegram_notification(self, message: str, to_group: bool = False):
+    def send_notification(self, message: str, to_group: bool = False):
         """
-        Отправка уведомления в Telegram и дублирование на почту
+        Отправка уведомления через все включённые каналы
 
         Args:
             message: текст сообщения
-            to_group: отправить в группу (True) или личный чат (False)
+            to_group: отправить в группу Telegram (True) или личный чат (False)
         """
-        # Сначала дублируем сообщение на почту независимо от успешности отправки в Telegram
+        # Загружаем настройки каналов
         try:
-            self.send_email(
-                filename=None,
-                filepath=None,
-                recipient="v.daurov@hotmail.com",
-                subject=f"Уведомление от системы Аршин ({self.script_id})",
-                body=f"Копия системного уведомления:\n\n{message}"
-            )
-        except Exception as email_err:
-            logging.error(f"Ошибка дублирования Telegram сообщения почтой: {email_err}")
-
-        try:
-            chat_id = (self.telegram_config['group_chat_id'] if to_group
-                      else self.telegram_config['personal_chat_id'])
-
-            bot_token = self.telegram_config['bot_token']
-            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-
-            data = {
-                "chat_id": chat_id,
-                "text": message,
-                "parse_mode": "HTML"
+            channels = self.config_manager.load_notification_channels()
+        except Exception:
+            # Fallback: если настройки не загружаются, используем старое поведение
+            channels = {
+                "email": {"enabled": True, "recipient": "v.daurov@hotmail.com"},
+                "telegram": {"enabled": True},
+                "ntfy": {"enabled": False}
             }
 
-            response = requests.post(url, data=data, timeout=10)
+        # Канал Email
+        email_ch = channels.get("email", {})
+        if email_ch.get("enabled", False):
+            try:
+                recipient = email_ch.get("recipient", "v.daurov@hotmail.com")
+                self.send_email(
+                    filename=None,
+                    filepath=None,
+                    recipient=recipient,
+                    subject=f"Уведомление от системы Аршин ({self.script_id})",
+                    body=f"Копия системного уведомления:\n\n{message}"
+                )
+            except Exception as email_err:
+                logging.error(f"Ошибка отправки email-уведомления: {email_err}")
+
+        # Канал Telegram
+        tg_ch = channels.get("telegram", {})
+        if tg_ch.get("enabled", False):
+            try:
+                chat_id = (self.telegram_config['group_chat_id'] if to_group
+                          else self.telegram_config['personal_chat_id'])
+
+                bot_token = self.telegram_config['bot_token']
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+                data = {
+                    "chat_id": chat_id,
+                    "text": message,
+                    "parse_mode": "HTML"
+                }
+
+                response = requests.post(url, data=data, timeout=10)
+                response.raise_for_status()
+
+                logging.info(f"Telegram уведомление отправлено: {message[:50]}...")
+
+            except Exception as e:
+                logging.error(f"Ошибка отправки Telegram уведомления: {e}")
+
+        # Канал ntfy.sh
+        ntfy_ch = channels.get("ntfy", {})
+        if ntfy_ch.get("enabled", False):
+            self._send_ntfy_notification(message, ntfy_ch)
+
+    def _send_ntfy_notification(self, message: str, ntfy_config: dict):
+        """
+        Отправка уведомления через ntfy.sh
+
+        Args:
+            message: текст сообщения
+            ntfy_config: настройки ntfy (server_url, topic)
+        """
+        try:
+            server_url = ntfy_config.get("server_url", "https://ntfy.sh").rstrip("/")
+            topic = ntfy_config.get("topic", "")
+
+            if not topic:
+                logging.warning("ntfy.sh: topic не задан, уведомление не отправлено")
+                return
+
+            url = f"{server_url}/{topic}"
+
+            response = requests.post(
+                url,
+                data=message.encode("utf-8"),
+                headers={
+                    "Title": f"Аршин ({self.script_id})",
+                    "Priority": "default"
+                },
+                timeout=10
+            )
             response.raise_for_status()
 
-            logging.info(f"Telegram уведомление отправлено: {message[:50]}...")
-            return True
+            logging.info(f"ntfy.sh уведомление отправлено в {topic}: {message[:50]}...")
 
         except Exception as e:
-            logging.error(f"Ошибка отправки Telegram уведомления: {e}")
-            # Не пробрасываем ошибку дальше - уведомление не критично
-            return False
+            logging.error(f"Ошибка отправки ntfy.sh уведомления: {e}")
+
+    # Алиас для обратной совместимости — все скрипты вызывают send_telegram_notification
+    send_telegram_notification = send_notification
 
     def check_and_update_calendar(self) -> bool:
         """

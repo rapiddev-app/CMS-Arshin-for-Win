@@ -1061,7 +1061,7 @@ class ScriptManagerGUI:
 
     def open_global_settings_dialog(self):
         """
-        Открыть окно глобальных настроек (email, telegram)
+        Открыть окно глобальных настроек (email, telegram, каналы уведомлений)
         """
         # Запрашиваем пароль
         password_dialog = PasswordDialog(self.root)
@@ -1071,8 +1071,8 @@ class ScriptManagerGUI:
             return
 
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Глобальные настройки (Отправители и Telegram)")
-        dialog.geometry("700x700")
+        dialog.title("Глобальные настройки (Отправители, Telegram, Уведомления)")
+        dialog.geometry("700x800")
         dialog.transient(self.root)
         dialog.grab_set()
 
@@ -1080,6 +1080,7 @@ class ScriptManagerGUI:
         gmail_config = self.config_manager.load_email_config("gmail")
         yandex_config = self.config_manager.load_email_config("yandex")
         telegram_config = self.config_manager.load_telegram_config()
+        notification_channels = self.config_manager.load_notification_channels()
 
         def save_global_settings():
             # Обновляем Gmail
@@ -1094,11 +1095,20 @@ class ScriptManagerGUI:
             telegram_config["bot_token"] = tg_token.get()
             telegram_config["personal_chat_id"] = tg_personal.get()
             telegram_config["group_chat_id"] = tg_group.get()
+
+            # Обновляем каналы уведомлений
+            notification_channels["email"]["enabled"] = email_notify_var.get()
+            notification_channels["email"]["recipient"] = email_notify_recipient.get()
+            notification_channels["telegram"]["enabled"] = tg_notify_var.get()
+            notification_channels["ntfy"]["enabled"] = ntfy_notify_var.get()
+            notification_channels["ntfy"]["server_url"] = ntfy_server_entry.get()
+            notification_channels["ntfy"]["topic"] = ntfy_topic_entry.get()
             
             # Сохраняем
             self.config_manager.save_email_config(gmail_config, "gmail")
             self.config_manager.save_email_config(yandex_config, "yandex")
             self.config_manager.save_telegram_config(telegram_config)
+            self.config_manager.save_notification_channels(notification_channels)
             
             logging.info("Глобальные настройки успешно сохранены")
             messagebox.showinfo("Успех", "Глобальные настройки сохранены!")
@@ -1111,10 +1121,77 @@ class ScriptManagerGUI:
         ctk.CTkButton(buttons_frame, text="Отмена", command=dialog.destroy, width=120).pack(side="left", padx=5)
 
         # Контейнер с прокруткой
-        scroll_frame = ctk.CTkScrollableFrame(dialog, width=650, height=600)
+        scroll_frame = ctk.CTkScrollableFrame(dialog, width=650, height=700)
         scroll_frame.pack(pady=20, padx=20, fill="both", expand=True)
 
-        # Почта Gmail
+        # ============ Каналы уведомлений ============
+        ctk.CTkLabel(scroll_frame, text="Каналы уведомлений", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 5))
+        ctk.CTkLabel(scroll_frame, text="Выберите каналы для получения системных уведомлений:", font=("Arial", 11), text_color="gray").pack(anchor="w", pady=(0, 10))
+
+        # --- Email канал ---
+        email_ch = notification_channels.get("email", {})
+        email_notify_var = ctk.BooleanVar(value=email_ch.get("enabled", True))
+
+        email_notify_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        email_notify_frame.pack(fill="x", pady=(0, 5))
+
+        ctk.CTkCheckBox(
+            email_notify_frame,
+            text="📧 Email уведомления",
+            variable=email_notify_var,
+            font=("Arial", 13)
+        ).pack(side="left")
+
+        email_recipient_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        email_recipient_frame.pack(fill="x", pady=(0, 10), padx=(25, 0))
+
+        ctk.CTkLabel(email_recipient_frame, text="Получатель:").pack(side="left", padx=(0, 5))
+        email_notify_recipient = ctk.CTkEntry(email_recipient_frame, width=350)
+        email_notify_recipient.insert(0, email_ch.get("recipient", "v.daurov@hotmail.com"))
+        email_notify_recipient.pack(side="left")
+
+        # --- Telegram канал ---
+        tg_ch = notification_channels.get("telegram", {})
+        tg_notify_var = ctk.BooleanVar(value=tg_ch.get("enabled", True))
+
+        ctk.CTkCheckBox(
+            scroll_frame,
+            text="💬 Telegram уведомления",
+            variable=tg_notify_var,
+            font=("Arial", 13)
+        ).pack(anchor="w", pady=(0, 10))
+
+        # --- ntfy.sh канал ---
+        ntfy_ch = notification_channels.get("ntfy", {})
+        ntfy_notify_var = ctk.BooleanVar(value=ntfy_ch.get("enabled", False))
+
+        ctk.CTkCheckBox(
+            scroll_frame,
+            text="🔔 ntfy.sh уведомления",
+            variable=ntfy_notify_var,
+            font=("Arial", 13)
+        ).pack(anchor="w", pady=(0, 5))
+
+        ntfy_settings_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        ntfy_settings_frame.pack(fill="x", pady=(0, 5), padx=(25, 0))
+
+        ctk.CTkLabel(ntfy_settings_frame, text="Server URL:").pack(side="left", padx=(0, 5))
+        ntfy_server_entry = ctk.CTkEntry(ntfy_settings_frame, width=350)
+        ntfy_server_entry.insert(0, ntfy_ch.get("server_url", "https://ntfy.sh"))
+        ntfy_server_entry.pack(side="left")
+
+        ntfy_topic_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        ntfy_topic_frame.pack(fill="x", pady=(0, 15), padx=(25, 0))
+
+        ctk.CTkLabel(ntfy_topic_frame, text="Topic:").pack(side="left", padx=(0, 5))
+        ntfy_topic_entry = ctk.CTkEntry(ntfy_topic_frame, width=350)
+        ntfy_topic_entry.insert(0, ntfy_ch.get("topic", ""))
+        ntfy_topic_entry.pack(side="left")
+
+        # Разделитель
+        ctk.CTkFrame(scroll_frame, height=2, fg_color="#444444").pack(fill="x", pady=(5, 15))
+
+        # ============ Почта Gmail ============
         ctk.CTkLabel(scroll_frame, text="Настройки отправителя (Gmail)", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 10))
         
         ctk.CTkLabel(scroll_frame, text="Пользователь (Email):").pack(anchor="w")
@@ -1127,7 +1204,7 @@ class ScriptManagerGUI:
         gmail_pass.insert(0, gmail_config.get("smtp", {}).get("password", ""))
         gmail_pass.pack(anchor="w", pady=(0, 20))
 
-        # Почта Yandex
+        # ============ Почта Yandex ============
         ctk.CTkLabel(scroll_frame, text="Настройки отправителя (Yandex)", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 10))
         
         ctk.CTkLabel(scroll_frame, text="Пользователь (Email):").pack(anchor="w")
@@ -1140,7 +1217,7 @@ class ScriptManagerGUI:
         yandex_pass.insert(0, yandex_config.get("smtp", {}).get("password", ""))
         yandex_pass.pack(anchor="w", pady=(0, 20))
 
-        # Настройки Telegram
+        # ============ Настройки Telegram ============
         ctk.CTkLabel(scroll_frame, text="Настройки Telegram Bot", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 10))
         
         ctk.CTkLabel(scroll_frame, text="Bot Token:").pack(anchor="w")

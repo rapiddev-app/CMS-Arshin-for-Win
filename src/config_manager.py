@@ -143,6 +143,24 @@ class ConfigManager:
         """Сохранение основных настроек"""
         self._save_json(self.settings_path, settings)
 
+    # ============ Методы для notification_channels ============
+
+    def load_notification_channels(self) -> Dict[str, Any]:
+        """Загрузка настроек каналов уведомлений из settings.json"""
+        settings = self.load_settings()
+        default_channels = {
+            "email": {"enabled": True, "recipient": "v.daurov@hotmail.com"},
+            "telegram": {"enabled": True},
+            "ntfy": {"enabled": False, "server_url": "https://ntfy.sh", "topic": ""}
+        }
+        return settings.get("notification_channels", default_channels)
+
+    def save_notification_channels(self, channels: Dict[str, Any]):
+        """Сохранение настроек каналов уведомлений в settings.json"""
+        settings = self.load_settings()
+        settings["notification_channels"] = channels
+        self.save_settings(settings)
+
     # ============ Методы для email конфигов ============
 
     def load_email_config(self, provider: str = "gmail") -> Dict[str, Any]:
@@ -294,7 +312,12 @@ class ConfigManager:
         if not os.path.exists(self.settings_path):
             default_settings = {
                 "password_hash": "",
-                "last_update": datetime.now().strftime("%Y-%m-%d")
+                "last_update": datetime.now().strftime("%Y-%m-%d"),
+                "notification_channels": {
+                    "email": {"enabled": True, "recipient": "v.daurov@hotmail.com"},
+                    "telegram": {"enabled": True},
+                    "ntfy": {"enabled": False, "server_url": "https://ntfy.sh", "topic": ""}
+                }
             }
             self._save_json(self.settings_path, default_settings)
             logging.info("Создан дефолтный settings.json")
