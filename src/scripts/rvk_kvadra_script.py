@@ -10,7 +10,7 @@ Weekly скрипт:
 import os
 import sys
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Tuple, Any
 import logging
 
@@ -58,12 +58,13 @@ class RVKKvadraScript(BaseScript):
 
             logging.info(f"RVK Kvadra: Прочитан файл, строк: {len(df)}")
 
-            # Фильтруем по "Дате вноса"
-            df['Дата вноса'] = pd.to_datetime(df['Дата вноса'], errors='coerce')
+            # Фильтруем по "Дате вноса" (отбрасываем время для точности, собираем по текущий день запуска)
+            df['Дата вноса'] = pd.to_datetime(df['Дата вноса'], errors='coerce').dt.date
 
+            current_run_date = end_date + timedelta(days=1)
             df_filtered = df[
-                (df['Дата вноса'] > start_date) &
-                (df['Дата вноса'] <= end_date)
+                (df['Дата вноса'] > start_date.date()) &
+                (df['Дата вноса'] <= current_run_date.date())
             ]
 
             # Убираем пустые строки

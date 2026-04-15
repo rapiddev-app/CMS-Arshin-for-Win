@@ -1072,7 +1072,7 @@ class ScriptManagerGUI:
 
         dialog = ctk.CTkToplevel(self.root)
         dialog.title("Глобальные настройки (Отправители, Telegram, Уведомления)")
-        dialog.geometry("700x800")
+        dialog.geometry("700x650")
         dialog.transient(self.root)
         dialog.grab_set()
 
@@ -1121,7 +1121,7 @@ class ScriptManagerGUI:
         ctk.CTkButton(buttons_frame, text="Отмена", command=dialog.destroy, width=120).pack(side="left", padx=5)
 
         # Контейнер с прокруткой
-        scroll_frame = ctk.CTkScrollableFrame(dialog, width=650, height=700)
+        scroll_frame = ctk.CTkScrollableFrame(dialog, width=650, height=550)
         scroll_frame.pack(pady=20, padx=20, fill="both", expand=True)
 
         # ============ Каналы уведомлений ============

@@ -10,7 +10,7 @@ Weekly скрипт:
 import os
 import sys
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Tuple, Any
 import logging
 
@@ -62,10 +62,11 @@ class KvadraScript(BaseScript):
             # Преобразуем 'Дата вноса' к дате
             df['Дата вноса'] = pd.to_datetime(df['Дата вноса'], errors='coerce').dt.date
 
-            # Фильтрация по 'Дата вноса'
+            # Фильтрация по 'Дата вноса' (собираем с прошлой субботы по текущую пятницу)
+            current_run_date = end_date + timedelta(days=1)
             df_filtered = df[
                 (df['Дата вноса'] > start_date.date()) &
-                (df['Дата вноса'] <= end_date.date())
+                (df['Дата вноса'] <= current_run_date.date())
             ]
 
             logging.info(f"Kvadra: Строк после фильтрации по 'Дата вноса': {len(df_filtered)}")
@@ -75,7 +76,7 @@ class KvadraScript(BaseScript):
                 df['Дата поверки'] = pd.to_datetime(df['Дата поверки'], errors='coerce').dt.date
                 in_range = df[
                     (df['Дата поверки'] > start_date.date()) &
-                    (df['Дата поверки'] <= end_date.date())
+                    (df['Дата поверки'] <= current_run_date.date())
                 ]
                 logging.info(f"Kvadra: Строк по 'Дата поверки': {len(in_range)}")
 

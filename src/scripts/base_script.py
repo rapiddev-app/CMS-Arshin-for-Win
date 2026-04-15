@@ -208,6 +208,8 @@ class BaseScript(ABC):
             ntfy_config: настройки ntfy (server_url, topic)
         """
         try:
+            import base64
+            
             server_url = ntfy_config.get("server_url", "https://ntfy.sh").rstrip("/")
             topic = ntfy_config.get("topic", "")
 
@@ -217,11 +219,15 @@ class BaseScript(ABC):
 
             url = f"{server_url}/{topic}"
 
+            # Кодируем заголовок в base64 (RFC 2047) для поддержки кириллицы
+            title_text = f"Аршин ({self.script_id})"
+            title_b64 = base64.b64encode(title_text.encode("utf-8")).decode("ascii")
+
             response = requests.post(
                 url,
                 data=message.encode("utf-8"),
                 headers={
-                    "Title": f"Аршин ({self.script_id})",
+                    "Title": f"=?UTF-8?B?{title_b64}?=",
                     "Priority": "default"
                 },
                 timeout=10
@@ -400,7 +406,7 @@ class BaseScript(ABC):
 
         Для weekly скриптов:
             start_date = предыдущий base_weekday (фиксированный)
-            end_date = actual_run_date (может быть перенесён на следующий рабочий)
+            end_date = вчерашний день от actual_run_date
 
         Args:
             actual_run_date: фактическая дата запуска (по умолчанию сегодня)
@@ -413,38 +419,41 @@ class BaseScript(ABC):
             Daily:
                 calculate_collection_period() → (сегодня, сегодня)
 
-            Weekly (четверг запланирован, четверг рабочий):
-                calculate_collection_period(datetime(2025,1,14), 3)
-                → (datetime(2025,1,7), datetime(2025,1,14))
-
-            Weekly (четверг был выходной, перенесено на пятницу):
-                calculate_collection_period(datetime(2025,1,15), 3)
-                → (datetime(2025,1,7), datetime(2025,1,15))
+            Weekly (запуск в пятницу 27.03 для базовой пятницы):
+                calculate_collection_period(datetime(2026,3,27), 4)
+                → (datetime(2026,3,20), datetime(2026,3,26))
         """
         if actual_run_date is None:
             actual_run_date = datetime.now()
 
+        # Обнуляем время, чтобы сравнение дат шло ровно с начала суток (00:00:00).
+        # Это предотвращает пропуск первого дня при фильтрации дат из Excel.
+        normalized_date = actual_run_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
         # Для daily скриптов
         if base_weekday is None:
+            # Оставляем оригинальную дату (с временем), чтобы не нарушить возможную текущую логику
             return actual_run_date, actual_run_date
 
-        # Для weekly скриптов
-        end_date = actual_run_date
-
+        # Для weekly скриптов (RVK, LTS и др.)
         # Находим предыдущий base_weekday от фактической даты запуска
-        days_since_base = (actual_run_date.weekday() - base_weekday) % 7
+        days_since_base = (normalized_date.weekday() - base_weekday) % 7
 
         if days_since_base == 0:
-            # Если сегодня сам базовый день (например четверг), берём прошлый четверг
+            # Если сегодня сам базовый день (например пятница), берём прошлую пятницу
             days_back = 7
         else:
             # Иначе берём последний прошедший базовый день
             days_back = days_since_base
 
-        start_date = actual_run_date - timedelta(days=days_back)
+        start_date = normalized_date - timedelta(days=days_back)
+        
+        # Конечная дата - вчерашний день
+        # Если запустились 27-го, собираем данные строго по 26-е включительно
+        end_date = normalized_date - timedelta(days=1)
 
         logging.info(f"Период сбора: с {start_date.strftime('%Y-%m-%d')} "
-                    f"по {end_date.strftime('%Y-%m-%d')} ({days_back} дней)")
+                    f"по {end_date.strftime('%Y-%m-%d')} ({days_back} дней назад)")
 
         return start_date, end_date
 
