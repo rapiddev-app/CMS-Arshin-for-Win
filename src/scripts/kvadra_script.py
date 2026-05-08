@@ -27,6 +27,32 @@ class KvadraScript(BaseScript):
         super().__init__(script_id='kvadra', email_provider='yandex')
         self.config = ConfigManager().load_script_config('kvadra')
 
+    def notify_future_input_dates(self, df: pd.DataFrame):
+        """
+        Уведомляет о датах вноса позже текущего дня, не прерывая сборку отчёта.
+        """
+        try:
+            if 'Дата вноса' not in df.columns:
+                return
+
+            today = datetime.now().date()
+            future_dates = sorted(
+                date_value
+                for date_value in df['Дата вноса'].dropna().unique()
+                if date_value > today
+            )
+
+            if not future_dates:
+                return
+
+            dates_text = ", ".join(date_value.strftime('%d.%m.%Y') for date_value in future_dates)
+            message = f"В колонке вноса есть даты за {dates_text}"
+            logging.warning(f"Kvadra: {message}")
+            self.send_telegram_notification(message, to_group=True)
+
+        except Exception as e:
+            logging.error(f"Kvadra: Ошибка проверки будущих дат в колонке 'Дата вноса': {e}")
+
     def gather_data(self) -> Any:
         """
         Сбор данных из Excel файла
@@ -61,6 +87,7 @@ class KvadraScript(BaseScript):
 
             # Преобразуем 'Дата вноса' к дате
             df['Дата вноса'] = pd.to_datetime(df['Дата вноса'], errors='coerce').dt.date
+            self.notify_future_input_dates(df)
 
             # Фильтрация по 'Дата вноса' (собираем с прошлой субботы по текущую пятницу)
             current_run_date = end_date + timedelta(days=1)
