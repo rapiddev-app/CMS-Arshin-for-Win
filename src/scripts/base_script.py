@@ -209,7 +209,7 @@ class BaseScript(ABC):
         """
         try:
             import base64
-            
+
             server_url = ntfy_config.get("server_url", "https://ntfy.sh").rstrip("/")
             topic = ntfy_config.get("topic", "")
 
@@ -399,61 +399,55 @@ class BaseScript(ABC):
     def calculate_collection_period(self, actual_run_date: Optional[datetime] = None,
                                     base_weekday: Optional[int] = None) -> Tuple[datetime, datetime]:
         """
-        Расчёт периода сбора данных для скрипта
+        Расчёт периода сбора данных для скрипта.
 
-        Для daily скриптов:
-            start_date = end_date = actual_run_date (или сегодня)
-
-        Для weekly скриптов:
-            start_date = предыдущий base_weekday (фиксированный)
-            end_date = вчерашний день от actual_run_date
+        Приоритет:
+        1. Если в конфиге есть 'last_run_date', период начинается со следующего дня после неё.
+        2. Иначе используется логика 'base_weekday'.
 
         Args:
             actual_run_date: фактическая дата запуска (по умолчанию сегодня)
-            base_weekday: базовый день недели для weekly (0=пн, 3=чт)
+            base_weekday: базовый день недели для weekly (0=пн, 4=пт)
 
         Returns:
             Tuple (start_date, end_date)
-
-        Примеры:
-            Daily:
-                calculate_collection_period() → (сегодня, сегодня)
-
-            Weekly (запуск в пятницу 27.03 для базовой пятницы):
-                calculate_collection_period(datetime(2026,3,27), 4)
-                → (datetime(2026,3,20), datetime(2026,3,26))
         """
         if actual_run_date is None:
             actual_run_date = datetime.now()
 
-        # Обнуляем время, чтобы сравнение дат шло ровно с начала суток (00:00:00).
-        # Это предотвращает пропуск первого дня при фильтрации дат из Excel.
         normalized_date = actual_run_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Для daily скриптов
+        # 1. Попытка загрузить дату последнего успешного запуска
+        try:
+            script_config = self.config_manager.load_script_config(self.script_id)
+            last_run_str = script_config.get('last_run_date')
+            if last_run_str:
+                start_date = datetime.strptime(last_run_str, '%Y-%m-%d')
+                end_date = normalized_date - timedelta(days=1)
+
+                # Если запуск в тот же день или раньше (не должно быть), fallback к обычной логике
+                if start_date < normalized_date:
+                    logging.info(f"Использую сохранённую дату последнего запуска: {last_run_str}")
+                    return start_date, end_date
+        except Exception as e:
+            logging.warning(f"Не удалось загрузить last_run_date: {e}")
+
+        # 2. Fallback или Daily логика
         if base_weekday is None:
-            # Оставляем оригинальную дату (с временем), чтобы не нарушить возможную текущую логику
+            # Для daily скриптов: собираем за сегодня (или за actual_run_date)
             return actual_run_date, actual_run_date
 
-        # Для weekly скриптов (RVK, LTS и др.)
-        # Находим предыдущий base_weekday от фактической даты запуска
+        # Для weekly скриптов (расчёт "умного" окна при отсутствии истории)
         days_since_base = (normalized_date.weekday() - base_weekday) % 7
 
-        if days_since_base == 0:
-            # Если сегодня сам базовый день (например пятница), берём прошлую пятницу
-            days_back = 7
-        else:
-            # Иначе берём последний прошедший базовый день
-            days_back = days_since_base
+        # Чтобы не было пропусков при задержках, всегда отступаем 7 дней + задержка
+        days_back = 7 + days_since_base
 
         start_date = normalized_date - timedelta(days=days_back)
-        
-        # Конечная дата - вчерашний день
-        # Если запустились 27-го, собираем данные строго по 26-е включительно
         end_date = normalized_date - timedelta(days=1)
 
-        logging.info(f"Период сбора: с {start_date.strftime('%Y-%m-%d')} "
-                    f"по {end_date.strftime('%Y-%m-%d')} ({days_back} дней назад)")
+        logging.info(f"Расчёт периода по базовому дню ({base_weekday}): "
+                    f"с {start_date.strftime('%Y-%m-%d')} по {end_date.strftime('%Y-%m-%d')}")
 
         return start_date, end_date
 
@@ -528,28 +522,16 @@ class BaseScript(ABC):
     def reschedule_next_run(self, schedule_type: str, send_time: str,
                            send_day: Optional[str] = None, smart_reschedule: bool = True):
         """
-        Пересчёт и обновление следующего запуска в Task Scheduler
-
-        Вызывается после успешной отправки письма для планирования
-        следующего запуска с учётом производственного календаря.
-
-        Args:
-            schedule_type: тип расписания ('daily' или 'weekly')
-            send_time: время отправки в формате 'HH:MM' (например, '09:00')
-            send_day: день недели для weekly ('Monday', 'Tuesday', и т.д.)
-            smart_reschedule: учитывать производственный календарь
-
-        Примеры:
-            Daily скрипт:
-                reschedule_next_run('daily', '10:00')
-                → планирует на завтра 10:00 (или следующий рабочий)
-
-            Weekly скрипт:
-                reschedule_next_run('weekly', '09:00', 'Thursday')
-                → планирует на следующий четверг 09:00 (или следующий рабочий)
+        Пересчёт и обновление следующего запуска в Task Scheduler.
+        Также сохраняет дату текущего успешного запуска для истории.
         """
         try:
-            # Вычисляем следующую дату запуска
+            # 1. Сохраняем дату текущего запуска как успешную (только дату YYYY-MM-DD)
+            current_date_str = datetime.now().strftime('%Y-%m-%d')
+            self.config_manager.update_script_field(self.script_id, 'last_run_date', current_date_str)
+            logging.info(f"Дата последнего успешного запуска {self.script_id} обновлена: {current_date_str}")
+
+            # 2. Вычисляем следующую дату запуска
             next_date = self.get_next_run_date(schedule_type, send_day, smart_reschedule)
 
             # Добавляем время

@@ -197,7 +197,7 @@ class ScriptManagerGUI:
 
         self.tab_buttons = {}
         self.tab_lines = {}
-        
+
         for tab_name in ["Скрипты", "Логи"]:
             # Фрейм для кнопки и линии
             tab_wrapper = ctk.CTkFrame(self.tabs_container, fg_color="transparent")
@@ -213,7 +213,7 @@ class ScriptManagerGUI:
                 command=lambda name=tab_name: self.switch_tab(name)
             )
             btn.pack(pady=(0, 0))
-            
+
             line = ctk.CTkFrame(tab_wrapper, height=3, width=100)
             line.pack(fill="x")
 
@@ -256,8 +256,8 @@ class ScriptManagerGUI:
         active_bg = "#FFFFFF" # Excel белый
         active_text = "#000000"
         active_line = "#107C41" # Excel зеленый
-        
-        inactive_bg = "#333333" 
+
+        inactive_bg = "#333333"
         inactive_text = "#AAAAAA"
         inactive_line = "transparent"
 
@@ -274,11 +274,11 @@ class ScriptManagerGUI:
     def create_logs_tab(self):
         """Создание элементов управления для вкладки 'Логи'"""
         logs_tab = self.frames["Логи"]
-        
+
         # Кнопки управления логами
         btns_frame = ctk.CTkFrame(logs_tab, fg_color="transparent")
         btns_frame.pack(fill="x", padx=10, pady=5)
-        
+
         refresh_logs_btn = ctk.CTkButton(
             btns_frame,
             text="Обновить логи",
@@ -289,12 +289,12 @@ class ScriptManagerGUI:
 
         # Текстовое поле для логов
         self.logs_textbox = ctk.CTkTextbox(
-            logs_tab, 
+            logs_tab,
             wrap="word",
             font=("Consolas", 12)
         )
         self.logs_textbox.pack(fill="both", expand=True, padx=10, pady=5)
-        
+
         # Сразу пытаемся загрузить логи
         self.load_logs()
 
@@ -353,7 +353,7 @@ class ScriptManagerGUI:
         # Настраиваем grid для главной рамки (выравнивание кнопок по столбцам)
         card_frame.grid_columnconfigure(0, weight=1)  # Левая часть тянется
         # Остальные столбцы 1-5 имеют минимальный нужный размер
-        
+
         # --- ЛЕВАЯ ЧАСТЬ (Имя + Статус) РОЛЬ 0 ---
         title_row = ctk.CTkFrame(card_frame, fg_color="transparent")
         title_row.grid(row=0, column=0, sticky="w", padx=15, pady=10)
@@ -424,7 +424,7 @@ class ScriptManagerGUI:
         toggle_text = "Отключить" if config['enabled'] else "Включить"
         toggle_color = "#E74C3C" if config['enabled'] else "#2ECC71"
         hover_color = "#C0392B" if config['enabled'] else "#27AE60"
-        
+
         toggle_btn = ctk.CTkButton(
             card_frame,
             text=toggle_text,
@@ -552,7 +552,7 @@ class ScriptManagerGUI:
                 'Friday': 4, 'Saturday': 5, 'Sunday': 6
             }
             # Fallback if send_day is missing or invalid
-            target_day = days_map.get(send_day, 3) 
+            target_day = days_map.get(send_day, 3)
             current_day = now.weekday()
             days_ahead = (target_day - current_day) % 7
             if days_ahead == 0:
@@ -593,7 +593,7 @@ class ScriptManagerGUI:
             title="Тестовая отправка"
         )
         test_email = dialog.get_input()
-        
+
         # Если нажали Cancel (None) -> выход. Если пустая строка -> продолжаем со стандартным email
         if test_email is None:
             return
@@ -615,7 +615,7 @@ class ScriptManagerGUI:
             wait_dialog.geometry("350x120")
             wait_dialog.transient(self.root)
             wait_dialog.grab_set()
-            
+
             # Центрируем
             wait_dialog.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (350 // 2)
@@ -625,7 +625,7 @@ class ScriptManagerGUI:
             label_text = f"Выполняется тестовая отправка...\n{config['name']}"
             if test_email.strip():
                 label_text += f"\n\nПолучатель: {test_email.strip()}"
-            
+
             ctk.CTkLabel(
                 wait_dialog,
                 text=label_text,
@@ -696,7 +696,7 @@ class ScriptManagerGUI:
             wait_dialog.geometry("350x120")
             wait_dialog.transient(self.root)
             wait_dialog.grab_set()
-            
+
             # Центрируем
             wait_dialog.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (350 // 2)
@@ -748,7 +748,7 @@ class ScriptManagerGUI:
     def refresh_script_status(self, script_id: str):
         """
         Обновить отображение статуса скрипта
-        
+
         Args:
             script_id: идентификатор скрипта
         """
@@ -761,7 +761,7 @@ class ScriptManagerGUI:
         # Обновляем статус
         status_text = "●"
         status_color = "#2ECC71" if config['enabled'] else "#E74C3C"
-        
+
         try:
             widgets['status_label'].configure(text=status_text, text_color=status_color)
         except Exception:
@@ -1003,7 +1003,7 @@ class ScriptManagerGUI:
 
         # Элементы внутри weekly_frame
         week_day_label = ctk.CTkLabel(weekly_frame, text="День недели:")
-        
+
         send_day = schedule.get('send_day', 'Thursday')
         days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         day_combo = ctk.CTkComboBox(weekly_frame, values=days, state="readonly")
@@ -1011,21 +1011,45 @@ class ScriptManagerGUI:
 
         def update_visibility(choice):
             if type_combo.get() == 'weekly':
+                weekly_frame.pack(fill="x", pady=0, before=smart_checkbox)
                 week_day_label.pack(anchor="w")
                 day_combo.pack(anchor="w", pady=(0, 10))
             else:
-                week_day_label.pack_forget()
-                day_combo.pack_forget()
+                weekly_frame.pack_forget()
 
         type_combo.configure(command=update_visibility)
-        update_visibility(None) # Инициализация видимости
 
         # Умное перепланирование
         smart_var = ctk.BooleanVar(value=schedule.get('smart_reschedule', True))
-        ctk.CTkCheckBox(
+        smart_checkbox = ctk.CTkCheckBox(
             scroll_frame,
             text="Умное перепланирование (учитывать календарь РФ)",
             variable=smart_var
+        )
+        smart_checkbox.pack(anchor="w", pady=(0, 10))
+
+        update_visibility(None) # Инициализация видимости
+
+        # Состояние последнего запуска
+        ctk.CTkLabel(scroll_frame, text="Контроль периода сбора:", font=("Arial", 12, "bold")).pack(anchor="w", pady=(10, 0))
+
+        last_run_date = config.get('last_run_date', 'Нет данных')
+        last_run_label = ctk.CTkLabel(scroll_frame, text=f"Последний удачный сбор: {last_run_date}")
+        last_run_label.pack(anchor="w", pady=(0, 5))
+
+        def reset_last_run():
+            if messagebox.askyesno("Подтверждение", f"Вы уверены, что хотите сбросить дату последнего сбора для {config['name']}?\n\nЭто заставит скрипт при следующем запуске использовать стандартный расчет периода."):
+                config['last_run_date'] = None
+                last_run_label.configure(text="Последний удачный сбор: Нет данных")
+                logging.info(f"Дата последнего запуска для {script_id} сброшена пользователем")
+
+        ctk.CTkButton(
+            scroll_frame,
+            text="Сбросить историю периода",
+            command=reset_last_run,
+            width=200,
+            fg_color="#CC6600",
+            hover_color="#994C00"
         ).pack(anchor="w", pady=(0, 10))
 
         # Кнопки перемещены наверх
@@ -1086,11 +1110,11 @@ class ScriptManagerGUI:
             # Обновляем Gmail
             gmail_config["smtp"]["username"] = gmail_user.get()
             gmail_config["smtp"]["password"] = gmail_pass.get()
-            
+
             # Обновляем Yandex
             yandex_config["smtp"]["username"] = yandex_user.get()
             yandex_config["smtp"]["password"] = yandex_pass.get()
-            
+
             # Обновляем Telegram
             telegram_config["bot_token"] = tg_token.get()
             telegram_config["personal_chat_id"] = tg_personal.get()
@@ -1103,13 +1127,13 @@ class ScriptManagerGUI:
             notification_channels["ntfy"]["enabled"] = ntfy_notify_var.get()
             notification_channels["ntfy"]["server_url"] = ntfy_server_entry.get()
             notification_channels["ntfy"]["topic"] = ntfy_topic_entry.get()
-            
+
             # Сохраняем
             self.config_manager.save_email_config(gmail_config, "gmail")
             self.config_manager.save_email_config(yandex_config, "yandex")
             self.config_manager.save_telegram_config(telegram_config)
             self.config_manager.save_notification_channels(notification_channels)
-            
+
             logging.info("Глобальные настройки успешно сохранены")
             messagebox.showinfo("Успех", "Глобальные настройки сохранены!")
             dialog.destroy()
@@ -1193,12 +1217,12 @@ class ScriptManagerGUI:
 
         # ============ Почта Gmail ============
         ctk.CTkLabel(scroll_frame, text="Настройки отправителя (Gmail)", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 10))
-        
+
         ctk.CTkLabel(scroll_frame, text="Пользователь (Email):").pack(anchor="w")
         gmail_user = ctk.CTkEntry(scroll_frame, width=400)
         gmail_user.insert(0, gmail_config.get("smtp", {}).get("username", ""))
         gmail_user.pack(anchor="w", pady=(0, 5))
-        
+
         ctk.CTkLabel(scroll_frame, text="Пароль приложения:").pack(anchor="w")
         gmail_pass = ctk.CTkEntry(scroll_frame, width=400, show="*")
         gmail_pass.insert(0, gmail_config.get("smtp", {}).get("password", ""))
@@ -1206,12 +1230,12 @@ class ScriptManagerGUI:
 
         # ============ Почта Yandex ============
         ctk.CTkLabel(scroll_frame, text="Настройки отправителя (Yandex)", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 10))
-        
+
         ctk.CTkLabel(scroll_frame, text="Пользователь (Email):").pack(anchor="w")
         yandex_user = ctk.CTkEntry(scroll_frame, width=400)
         yandex_user.insert(0, yandex_config.get("smtp", {}).get("username", ""))
         yandex_user.pack(anchor="w", pady=(0, 5))
-        
+
         ctk.CTkLabel(scroll_frame, text="Пароль приложения:").pack(anchor="w")
         yandex_pass = ctk.CTkEntry(scroll_frame, width=400, show="*")
         yandex_pass.insert(0, yandex_config.get("smtp", {}).get("password", ""))
@@ -1219,12 +1243,12 @@ class ScriptManagerGUI:
 
         # ============ Настройки Telegram ============
         ctk.CTkLabel(scroll_frame, text="Настройки Telegram Bot", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 10))
-        
+
         ctk.CTkLabel(scroll_frame, text="Bot Token:").pack(anchor="w")
         tg_token = ctk.CTkEntry(scroll_frame, width=500)
         tg_token.insert(0, telegram_config.get("bot_token", ""))
         tg_token.pack(anchor="w", pady=(0, 5))
-        
+
         ctk.CTkLabel(scroll_frame, text="Personal Chat ID:").pack(anchor="w")
         tg_personal = ctk.CTkEntry(scroll_frame, width=300)
         tg_personal.insert(0, telegram_config.get("personal_chat_id", ""))
